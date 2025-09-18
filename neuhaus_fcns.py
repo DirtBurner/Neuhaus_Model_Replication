@@ -4,6 +4,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
+from matplotlib import cm
 import math
 import numpy as np
 
@@ -410,6 +411,10 @@ def Neuhaus_PW_solute_model(boundary_condition_profile_analytical, D, T_1, C_0, 
     else:
         print('Diffusion and advection being employed.')
         tag = 'Advection_diffusion'
+        peclet = u*200/D
+        print('Peclet number: ', 0.15*200/D)
+
+
     p = boundary_cond_p2.copy()
     for t in range(1, Nt):
         for j in range(1, Nx - 1):
@@ -429,7 +434,7 @@ def Neuhaus_PW_solute_model(boundary_condition_profile_analytical, D, T_1, C_0, 
     return z, phase2_arr, tag
     
 
-def visualize_phase1(phase1_arr, z, T_0, time_step):
+def visualize_phase1(phase1_arr, z, T_0, time_step, cmap='copper'):
     '''
     Plots curves from the array of Phase 1 profiles, the initial condition, the final condition (initial condition 
     for Phase 2), and 3 from the middle. 
@@ -441,6 +446,7 @@ def visualize_phase1(phase1_arr, z, T_0, time_step):
             T_0 (float): The time at which the grounding line first retreated past the position from which the
                 data were taken, exposing the site to salt water
             time_step (integer): the number of years between each calculation of profiles
+            cmap (matplotlib array of colors): This is the colormap that you want to use to plot mutliple curves
 
         Output variables:
             fig (figure handle): the figure handle of the graphic
@@ -453,6 +459,7 @@ def visualize_phase1(phase1_arr, z, T_0, time_step):
 
     #xes = np.linspace(0, max_depth, max_depth//depth_step)
     cols = [0, len(phase1_arr[:,0])//3, len(phase1_arr[:, 0])//3*2, -1]
+    colormap = cm.get_cmap(cmap, len(cols))
     for ind, t in enumerate(cols):
         if t==0:
             name = 'Initial Cond.'
@@ -460,7 +467,7 @@ def visualize_phase1(phase1_arr, z, T_0, time_step):
             name = 'Final Cond.'
         else:
             name = str(T_0 - t*time_step)+' ybp'
-        ax.plot(phase1_arr[t, :], z, label=name)
+        ax.plot(phase1_arr[t, :], z, c=colormap(ind), label=name)
     
     ax.yaxis.set_inverted(True)
     ax.set(
@@ -472,7 +479,7 @@ def visualize_phase1(phase1_arr, z, T_0, time_step):
 
     return fig, ax
 
-def visualize_phase2(phase_2_profiles, pw_df, z, slice=5):
+def visualize_phase2(phase_2_profiles, pw_df, z, slice=5, cmap='copper'):
 
     '''
     Plots curves from the array of Phase 2 profiles, the advection-diffusion (or diffusion only) model
@@ -499,15 +506,18 @@ def visualize_phase2(phase_2_profiles, pw_df, z, slice=5):
 
     Nt = phase_2_profiles.shape[0]
     print('Nt = ', Nt)
+    colormap = cm.get_cmap(cmap, slice+2)
+    ctr=1
     #Plot Phase 2 only:
     for t in range(0, Nt, Nt//slice):
         # plot every "Nt//slice" time step from model
         print('Time step: ', str(Nt-t))
-        ax[0].plot(phase_2_profiles[t, :], z, label=f'{Nt-t}'+'ybp')
+        ax[0].plot(phase_2_profiles[t, :], z, c=colormap(ctr), label=f'{Nt-t}'+'ybp')
+        ctr = ctr + 1
     #Add observations:
     ax[0].plot(cond, depth, linestyle='', marker='^', markersize=10, mec='k', color='tomato')
     #Add final time step from model:
-    ax[0].plot(phase_2_profiles[-1, :], z, color='k', linewidth=2, label='Final step')
+    ax[0].plot(phase_2_profiles[-1, :], z, color='k', linewidth=3, label='Final step')
     ax[0].set(ylabel='depth (cm)', title='Ph. 2 A-D '+str(Nt)+'-0 ybp')
     ax[0].yaxis.set_inverted(True)
     ax[0].legend() 
@@ -522,7 +532,7 @@ def visualize_phase2(phase_2_profiles, pw_df, z, slice=5):
 
     return fig, ax
 
-def visualize_allphases(c_profiles_p1, phase_2_profiles, pw_df, T_0, T_1, z, slice=5):
+def visualize_allphases(c_profiles_p1, phase_2_profiles, pw_df, T_0, T_1, z, slice=5, cmap='copper'):
     '''
     Plots curves from the array of Phase 1 profiles (retreat), the Phase 2 profiles (advance), and the data.
     In each of the first two panels, the initial conditions and the final conditions are differentiated
@@ -555,9 +565,13 @@ def visualize_allphases(c_profiles_p1, phase_2_profiles, pw_df, T_0, T_1, z, sli
 
     #Plot Phase 1:
     Nt_0 = c_profiles_p1.shape[0]
+    #Activate color map, set counter at 1 so that the colormap does not include black. 
+    colormap = cm.get_cmap(cmap, slice+2)
+    ctr=1
     for t in range(0, Nt_0, Nt_0//slice):
         # plot every "Nt//slice" time step from model
-        ax[0].plot(c_profiles_p1[t, :], z, label=f'{T_0-t}'+'ybp')
+        ax[0].plot(c_profiles_p1[t, :], z, c=colormap(ctr), label=f'{T_0-t}'+'ybp')
+        ctr = ctr + 1
     #Add observations:
     ax[0].plot(cond, depth, linestyle='', marker='^', markersize=10, mec='k', color='tomato')
     #Add final time step from model:
@@ -569,13 +583,15 @@ def visualize_allphases(c_profiles_p1, phase_2_profiles, pw_df, T_0, T_1, z, sli
 
     #Plot Phase 2:
     Nt_1 = phase_2_profiles.shape[0]
+    ctr = 1     #Reset Counter...
     for t in range(0, Nt_1, Nt_1//slice):
         # plot every "Nt//slice" time step from model
-        ax[1].plot(phase_2_profiles[t, :], z, label=f'{T_1-t}'+'ybp')
+        ax[1].plot(phase_2_profiles[t, :], z, c=colormap(ctr), label=f'{T_1-t}'+'ybp')
+        ctr = ctr + 1
     #Add observations:
     ax[1].plot(cond, depth, linestyle='', marker='^', markersize=10, mec='k', color='tomato')
     #Add final time step from model:
-    ax[1].plot(phase_2_profiles[-1, :], z, color='k', linewidth=2, label='Present')
+    ax[1].plot(phase_2_profiles[-1, :], z, color='k', linewidth=3, label='Present')
     ax[1].set(ylabel='depth (cm)', title='Ph. 2: Readvance')
     ax[1].yaxis.set_inverted(True)
     ax[1].legend() 
